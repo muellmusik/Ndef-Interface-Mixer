@@ -9,7 +9,12 @@
   "author": "Scott Wilson",
   "license": "GPL-2.0-only",
   "dependencies": {
+    "connect": "^3.7.0",
     "interface.js": "git+https://github.com/charlieroberts/interface.js.git#06f89f8",
-    "ws": "^7.2.0"
+    "minimist": "^1.2.5",
+    "osc-min": "^1.1.2",
+    "serve-index": "^1.9.1",
+    "serve-static": "^1.14.1",
+    "ws": "^0.4.32"
   }
 }
