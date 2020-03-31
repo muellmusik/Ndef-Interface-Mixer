@@ -1,0 +1,15 @@
+{
+  "name": "ndef-interface-mixer",
+  "version": "0.0.1",
+  "description": "Interface.js based Ndef Mixer, WIP",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Scott Wilson",
+  "license": "GPL-2.0-only",
+  "dependencies": {
+    "interface.js": "git+https://github.com/charlieroberts/interface.js.git#06f89f8",
+    "ws": "^7.2.0"
+  }
+}
