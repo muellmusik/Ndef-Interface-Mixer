@@ -32,7 +32,11 @@ NetAddr("127.0.0.1", 8084).sendMsg( "/interface/addWidget", "{'type':'Knob', 'us
 
 NetAddr("127.0.0.1", 8084).sendMsg( "/interface/addWidget", "{'type':'Slider'}");
 
+NetAddr("127.0.0.1", 8084).sendMsg( "/interface/addWidget", "{'type':'Knob', 'key':'Knob1', 'name':'Knob1'}");
 
+NetAddr("127.0.0.1", 8084).sendMsg( "/interface/removeWidget", "Knob1");
+
+NetAddr("127.0.0.1", 8084).sendMsg( "/interface/removeWidget", Ndef(\foo).key);
 
 Ndef.all['localhost'].envir.keys
 
@@ -42,18 +46,24 @@ Ndef(\foo).vol = 0.5
 
 NdefMixer(s);
 ~ndefs = nil; ~vols = IdentityDictionary();
+~clearFunc = {|ndef, what, fadeTime| if(what === \clear, {SystemClock.sched(fadeTime[0], { NetAddr("127.0.0.1", 8084).sendMsg( "/interface/removeWidget", ndef.key); })}) };
 SkipJack({
+	var nonNeutralNdefs;
 	try {
+		nonNeutralNdefs = Ndef.all['localhost'].envir.keys.select({|key| Ndef(key).isNeutral.not });
 		// create new if needed
-		if(~ndefs != Ndef.all['localhost'].envir.keys, {
+		if(~ndefs != nonNeutralNdefs, {
 			//NetAddr("127.0.0.1", 8084).sendMsg("/interface/clear");
-			Ndef.all['localhost'].envir.keys.difference(~ndefs).do({|key|
+			nonNeutralNdefs.difference(~ndefs).do({|key|
 				/*NetAddr("127.0.0.1", 8084).sendMsg( "/interface/addWidget", "{'type':'Knob', 'usesRotation':false, 'target':'OSC', 'key':'/%', 'label':'%', 'sacrosanct':true}".format(key, key));*/
-				NetAddr("127.0.0.1", 8084).sendMsg( "/interface/addWidget", "{'type':'Slider', 'target':'OSC', 'key':'/%', 'label':'%', 'sacrosanct':true, 'value':'%'}".format(key, key, Ndef(key).vol));
+
+				NetAddr("127.0.0.1", 8084).sendMsg( "/interface/addWidget", "{'type':'Slider', 'target':'OSC', 'key':'/%', 'label':'%', 'name':'%', 'sacrosanct':true, 'value':'%'}".format(key, key, key, Ndef(key).vol));
 				~vols[key] = Ndef(key).vol;
 				OSCdef(key, {|msg| Ndef(key).vol = msg[1]; }, "/" ++ key);
+				Ndef(key).addDependant(~clearFunc);
 			});
-			~ndefs = Ndef.all['localhost'].envir.keys.copy;
+			~ndefs = nonNeutralNdefs.copy;
+
 		});
 
 		~vols.keysValuesDo({|key, vol| if(vol != Ndef(key).vol, { NetAddr("127.0.0.1", 8084).sendMsg(key, vol = Ndef(key).vol); ~vols[key] = vol}); // modify collection while iterating? okay as dict?
@@ -92,11 +102,11 @@ var playButt = new Interface.Button({bounds: [0, 0, .5, 1]});
 var edButt = new Interface.Button({bounds: [.5, 0, .5, 1]});
 var slid = new Interface.Slider({
 bounds: [0, 0, 1, .8],
-     isVertical:true,
+isVertical:true,
 target:'OSC', key:'/%',
-     label: '%',
-     value: %,
-   });
+label: '%',
+value: %,
+});
 panel.add(vbox, slid, hbox, playButt, edButt);
 
 vbox.add(slid, hbox);
