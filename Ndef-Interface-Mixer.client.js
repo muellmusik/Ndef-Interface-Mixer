@@ -1,3 +1,173 @@
+Interface.NdefSlider = function() {
+  Interface.extend(this, {
+    type : 'Slider',
+    isVertical : true,
+    serializeMe : ["isVertical"],
+    isPlaying : false,
+    lastHitIsPlay: false,
+    playWidth : null,
+
+    draw : function() {
+      var x = this._x(),
+          y = this._y(),
+          width = this._width(),
+          height= this._height();
+
+      this.ctx.fillStyle = this._background();
+      this.ctx.fillRect( x, y, width, height );
+
+      this.ctx.fillStyle = this._fill();
+
+      if(this.isVertical) {
+        this.ctx.fillRect( x, y + height - this._value * height, width, this._value * height);
+      }else{
+        this.ctx.fillRect( x, y, width * this._value, height);
+      }
+
+      if(this.label) {
+        this.ctx.fillStyle = this._stroke();
+        this.ctx.textBaseline = 'middle';
+        this.ctx.textAlign = 'center';
+        this.ctx.font = this._font();
+        this.ctx.fillText(this.label, x + width / 2, y + height / 2);
+      }
+
+      this.ctx.strokeStyle = this._stroke();
+      this.ctx.strokeRect( x, y, width, height );
+
+      // play button
+      if (this.playWidth === null) { this.playWidth = panel.width * 0.05 }
+
+      this.ctx.fillStyle = this.isPlaying ? 'green' : this._background();
+      this.ctx.fillRect( x, y, this.playWidth, this.playWidth );
+
+      this.ctx.strokeRect( x, y, this.playWidth, this.playWidth );
+      this.ctx.fillStyle = this._stroke();
+      this.ctx.textBaseline = 'middle';
+      this.ctx.textAlign = 'center';
+      this.ctx.font = 'normal 14px Helvetica'
+      this.ctx.fillText("P", x + this.playWidth * 0.5, y + this.playWidth * 0.5);
+    },
+
+    hitTest : function(e) {
+      if(e.x >= this._x() && e.x <= this._x() + this._width()) {
+        if(e.y >= this._y() && e.y <= this._y() + this._height()) {
+          if (e.x <= (this._x() + this.playWidth) && e.y <= (this._y() + this.playWidth)) {
+            this.lastHitIsPlay = true
+          } else {
+            this.lastHitIsPlay = false
+          }
+          return true;
+        }
+      }
+
+      return false;
+    },
+
+    changeValue : function( xOffset, yOffset ) {
+      if(this.hasFocus || !this.requiresFocus) {
+
+        this._value = this.isVertical ? 1 - (yOffset / this._height()) : xOffset / this._width();
+
+        if(this._value < 0) {
+          this._value = 0;
+          // this.hasFocus = false;
+        }else if(this._value > 1) {
+          this._value = 1;
+          // this.hasFocus = false;
+        }
+
+        this.value = this.min + (this.max - this.min) * this._value;
+
+        if(this.value !== this.lastValue) {
+          this.sendTargetMessage();
+          if(this.onvaluechange) this.onvaluechange();
+          this.refresh();
+          this.lastValue = this.value;
+        }
+      }
+    },
+
+    sendPlayMessage : function() {
+      this.isPlaying = !this.isPlaying
+      if(this.target && this.key) {
+        if(this.target === "OSC") {
+          if(Interface.OSC) {
+            if(typeof this.values === 'undefined') {
+              var tt = typeof this.value === 'string' ? 's' : 'f';
+              Interface.OSC.send(this.key + '-play', tt, [ this.isPlaying ] );
+            }else{
+              if(typeof this.sendValues === 'undefined') {
+                var tt = '';
+                for(var i = 0; i < this.values.length; i++) {
+                  tt += typeof this.value === 'string' ? 's' : 'f';
+                }
+                Interface.OSC.send( this.key, tt, this.values );
+              }else{
+                this.sendValues();
+              }
+            }
+          }
+        // }else if(this.target === "MIDI") {
+        //   if(Interface.MIDI && typeof this.values === 'undefined') {
+        //     Interface.MIDI.send( this.key[0],this.key[1],this.key[2], this.value )
+        //   }
+        }else if( this.target === 'WebSocket' ){
+          var msg = {
+            type : "socket",
+            address: this.key + '-play',
+          }
+          var values
+
+          if( Interface.Socket ) {
+            if(typeof this.values === 'undefined') {
+              values = [ this.isPlaying ]
+            }else{
+              if(typeof this.sendValues === 'undefined') {
+                values = [ this.isPlaying ]
+              }else{
+                this.sendValues()
+                return
+              }
+            }
+            msg.parameters = values
+            Interface.Socket.send( JSON.stringify( msg ) );
+          }
+
+        // }else{
+        //   if(typeof this.target[this.key] === 'function') {
+        //     this.target[this.key + '-play']( this.values || this.value );
+        //   }else{
+        //     this.target[this.key+ '-play'] = this.values || this.value;
+        //   }
+        }
+      }
+      this.refresh();
+    },
+
+    mousedown : function(e, hit) { if(this.lastHitIsPlay) { this.sendPlayMessage() } else {
+      if(hit && Interface.mouseDown) this.changeValue( e.x - this._x(), e.y - this._y() );}
+    },
+    mousemove : function(e, hit) { if(!this.lastHitIsPlay) {
+      if(hit && Interface.mouseDown) this.changeValue( e.x - this._x(), e.y - this._y() ); }
+    },
+    mouseup   : function(e, hit) { if(!this.lastHitIsPlay) {
+      if(hit && Interface.mouseDown) this.changeValue( e.x - this._x(), e.y - this._y() ); }
+    },
+
+    touchstart : function(e, hit) { if(this.lastHitIsPlay) { this.sendPlayMessage() } else {
+        if(hit) this.changeValue( e.x - this._x(), e.y - this._y() );}
+    },
+    touchmove  : function(e, hit) { if(!this.lastHitIsPlay) {
+      if(hit) this.changeValue( e.x - this._x(), e.y - this._y() );}
+    },
+    touchend   : function(e, hit) { if(!this.lastHitIsPlay) {
+      if(hit) this.changeValue( e.x - this._x(), e.y - this._y() ); }
+    },
+  })
+  .init( arguments[0] );
+};
+Interface.NdefSlider.prototype = Interface.Widget;
 var expr, socketAndIPPort, socketString;
 
 expr = /[-a-zA-Z0-9.]+(:(6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3}))/
